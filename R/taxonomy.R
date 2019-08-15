@@ -1,8 +1,7 @@
 
 ## PHYLOGENY/TAXONOMY: TREE PARSING AND GENERATION
-## similar to functions provided by ape and phylobase, but
-## the functions here work on a named edge list
-## ("tax") only
+## similar to functions provided by ape and phylobase,
+## but specific for NCBI Taxonomy
 
 ## TODO: remove singular root chain
 trimRoot <- function(tax, ids) {}
@@ -37,19 +36,20 @@ getAncestor <- function(ids, tax, rootid="1", dbug=FALSE) {
     ## get subtree for only "ids" nodes/leaves
     st <- getAllParents(ids, tax, rootid=rootid, dbug=dbug)
     
-    root <- unique(st[!st%in%names(st)])
+    root <- unique(st[!st[,1]%in%st[,2],1])
     if ( length(root)!=1 ) stop("there can only be one root")
     
-    if ( sum(!names(st)%in% st)==1 ) # all ids in single lineage: get highest
-        anc <- ids[ids %in% st][1]
+    if ( sum(!st[,2]%in% st[,1])==1 ) # all ids in single lineage: get highest
+        anc <- ids[ids %in% st[,1]][1]
     else { # several lineages
         ## order 'cladewise'
         tmp <- list()
-        tmp$parents <- st
+        tmp$parents <- st[,1]
+        names(tmp$parents) <- st[,2] 
         st <- getChildren(root, tmp)
         ## get first branch in 'cladewise' ordered tree (i.e. skip 
         ## singelton chain to root)
-        anc <- names(which(table(st)>1)[1])
+        anc <- names(which(table(st[,1])>1)[1])
     }  
     anc
 }
@@ -65,7 +65,8 @@ getAllParents <- function(ids, tax, rootid="1", dbug=FALSE) {
     if ( dbug )
       cat(paste("parents for id", id, ";",
                 round(which(ids==id)/length(ids),2),"done\n"), file=stderr())
-    edges <- c(edges,getParents(id,tax,skip=edges,rootid=rootid,dbug=dbug))
+    edges <- rbind(edges,
+                   getParents(id,tax,skip=edges,rootid=rootid,dbug=dbug))
   }
   edges
 }
@@ -100,26 +101,30 @@ getParents <- function(id, tax, skip=NULL, rootid="1", verb=TRUE, dbug=FALSE) {
         else if ( dbug ) cat(paste("found root\n"))
         return(NULL)
     }
+    
+    ## is id already present?
+    if ( id %in% c(skip) ) { #c(skip,names(skip)) ) {
+        if ( dbug ) cat(paste(id,"id present.\n"),file=stderr())
+        return(NULL)
+    }
   
-  ## is id already present?
-  if ( id %in% c(skip,names(skip)) ) {
-    if ( dbug ) cat(paste(id,"id present.\n"),file=stderr())
-    return(NULL)
-  }
-  
-  ## new edges, start from id as child
-  nedges <- tax$parents[names(tax$parents)==id] # tax[tax[,childCol]==id,]
-  parent <- nedges
-  
-  ## check if lineage is already present in 'skip' edges?
-  linedone <- parent %in% names(skip) #skip[,childCol]
-  if ( dbug & linedone ) cat(paste(parent,"lineage present.\n"),file=stderr())
-
-  ## recursive parent retrieval until root is reached
-  if ( parent != rootid & !linedone ) 
-    nedges <- c(getParents(parent,tax,skip=skip, rootid=rootid,dbug=dbug),
-                nedges)
-  nedges
+    ## new edges, start from id as child
+    nedges <- tax$parents[names(tax$parents)==id] # tax[tax[,childCol]==id,]
+    parent <- nedges
+    ## edge list
+    nedges <- cbind(nedges, names(nedges))
+    
+    ## check if lineage is already present in 'skip' edges?
+    linedone <- parent %in% skip[,2]
+    if ( dbug & linedone ) cat(paste(parent,"lineage present.\n"),file=stderr())
+    
+    ## recursive parent retrieval until root is reached
+    if ( parent != rootid & !linedone ) 
+        nedges <- rbind(getParents(parent, tax,
+                                   skip=skip, rootid=rootid,dbug=dbug),
+                        nedges)
+    colnames(nedges) <- c("parent","child")
+    nedges
 }
 
 ## simple children retrieval: returns a list of all children
@@ -142,9 +147,10 @@ getChildren <- function(id, tax) {
     srtedg <- NULL ## leave, if no idcs
     ## recursive call for all children
     for ( idx in idcs ) 
-        srtedg <- c(srtedg, names(tax$parent[idx]),
-                    getChildren(names(tax$parent[idx]),tax))
-    srtedg <- tax$parent[srtedg]
+        srtedg <- rbind(srtedg,
+                        c(tax$parent[idx],names(tax$parent[idx])),
+                        getChildren(names(tax$parent[idx]),tax))
+    #srtedg <- tax$parent[srtedg]
     srtedg
 }
 
@@ -216,101 +222,106 @@ parseNCBITaxonomy <- function(taxd, names=TRUE, ranks=TRUE,
     
 }
 
-## takes a list of edges with named nodes (e.g. NCBI taxonomy),
-## and converts this to a ape::phylo (TODO: phylobase::phylo4) tree object,
-## optionally renames edges if a node vector is given
-tax2phylo <- function(edges, root="1", nodes=NULL, order=FALSE) {
+## converts an NCBI taxonomy object,
+## to an ape::phylo (TODO: phylobase::phylo4) tree object,
+## optionally renames edges to NCBI taxon names
+tax2phylo <- function(tax, root="1", names=FALSE, order=FALSE) {
 
-  colnames(edges) <- c("parent","child")
-  ## order edges 'cladewise' (ape, eq. to 'preorder' in phylobase)
-  ## by depth-first search
-  if ( order ) edges <- getChildren(root,tax=edges) 
+
+    ## get edges table
+    ## order edges 'cladewise' (ape, eq. to 'preorder' in phylobase)
+    ## by depth-first search
+    if ( order ) edges <- getChildren(root,tax=tax)
+    else edges <- cbind(tax$parents, names(tax$parents))
+    colnames(edges) <- c("parent","child")
   
-  ## map edges to node and leave vectors
-  inodes <- edges[which(edges[,"child"]  %in% edges[,"parent"]),"child"]
-  leaves <- edges[which(!edges[,"child"]%in% edges[,"parent"]),"child"]
-  allnodes <- 1:(length(inodes)+length(leaves)+1)
-  ## order: leaves, root, internal nodes
-  names(allnodes) <- c(leaves,root,inodes)
-  edges <- cbind(parent=allnodes[edges[,"parent"]],
-                 child=allnodes[edges[,"child"]])
-  rownames(edges) <- names(inodes) <- names(leaves) <- NULL
-  ## set node names
-  lnames <- leaves
-  names(lnames) <- leaves
-  nnames <- inodes
-  names(nnames) <- inodes
-  rname <- root
-  ## replace ID by node names
-  if ( !is.null(nodes) ) {
-    for ( inode in inodes )
-      nnames[inode] <- nodes[nodes[,1]==inode,2]
-    for ( leave in leaves )
-      lnames[leave] <- nodes[nodes[,1]==leave,2]
-    rname <- nodes[nodes[,1]==root,2]
-  }
-
-
-  ## generate phylo object (package ape)
-  ## 1) full tree with internal node
-  ## order: leaves; root, internal nodes
-  tree <- list(edge=edges,
-               Nnode=length(c(root,inodes)), tip.label=lnames,
-               edge.length=rep(1,nrow(edges)), node.label=c(rname,nnames))
-  class(tree) <- "phylo"
-  if ( order ) 
-    attributes(tree)$order <- "cladewise"
-  tree
+    ## map edges to node and leave vectors
+    inodes <- edges[which(edges[,"child"]  %in% edges[,"parent"]),"child"]
+    leaves <- edges[which(!edges[,"child"]%in% edges[,"parent"]),"child"]
+    allnodes <- 1:(length(inodes)+length(leaves)+1)
+    ## order: leaves, root, internal nodes
+    names(allnodes) <- c(leaves,root,inodes)
+    edges <- cbind(parent=allnodes[edges[,"parent"]],
+                   child=allnodes[edges[,"child"]])
+    rownames(edges) <- names(inodes) <- names(leaves) <- NULL
+    ## set node names
+    lnames <- leaves
+    names(lnames) <- leaves
+    nnames <- inodes
+    names(nnames) <- inodes
+    rname <- root
+    ## replace ID by node names
+    if ( names ) {
+        nnames[inodes] <- tax$names[as.character(inodes)]
+        lnames[leaves] <- tax$names[as.character(leaves)]
+        rname <-  tax$names[as.character(root)]
+    }
+    
+    
+    ## generate phylo object (package ape)
+    ## 1) full tree with internal node
+    ## order: leaves; root, internal nodes
+    tree <- list(edge=edges,
+                 Nnode=length(c(root,inodes)), tip.label=lnames,
+                 edge.length=rep(1,nrow(edges)), node.label=c(rname,nnames))
+    class(tree) <- "phylo"
+    if ( order ) 
+        attributes(tree)$order <- "cladewise"
+    tree
 }
 
 ## get NCBI taxonomy from  taxon IDs as tree in newick format
 #' @export
-tax2newick <- function(ids, txd, species=FALSE, full=FALSE,ranks=FALSE,
+tax2newick <- function(ids, tax, names=FALSE, full=FALSE,ranks=FALSE,
                        verb=FALSE, dbug=FALSE) {
 
-  if ( missing(ids) ) stop("No IDs provided!\n")
-  if ( missing(txd) ) stop("No directory for NCBI taxonomy files provided!\n")
+    if ( missing(ids) ) stop("No IDs provided!\n")
+    if ( missing(tax) ) stop("No NCBI taxonomy provided!\n")
 
-  ## read NCBI taxonomy
-  txn <- parseNCBITaxonomy(txd, species=species, verb=verb,ranks=ranks)
-  tax <- txn$taxon
-  nam <- txn$names
-  rank <- txn$rank
-  
-  if ( verb ) cat(paste("collecting lineages, may take long!",
-                        length(ids), "taxa ..."),file=stderr())
+    ## read NCBI taxonomy
+    if ( typeof(tax)=="character" )
+        tax <- parseNCBITaxonomy(tax, names=names, verb=verb,ranks=ranks)
 
-  ## collect parent lineages for all IDs
-  edges <- getAllParents(ids, tax, rootid="1",dbug=dbug)
-
-  ## are there still duplicated?
-  if ( sum(duplicated(edges[,"child"]))>0 )
-    stop("duplicated edges found; should not happen!?")
-  #edges <- edges[!duplicated(edges[,"child"]),]
-
-  if ( verb )
-    cat(paste(" ... done. Sorting",nrow(edges),"edges and",
-              "creating phylo object ...\n"),file=stderr())
-
-  ## find root - there can only be one, it should be "1" for NCBI!
-  ## TODO: stop on or allow multiple?)
-  root <- unique(edges[which(!edges[,"parent"] %in% edges[,"child"]),"parent"])
-  ## convert named edges to phylo object!
-  tree <- tax2phylo(edges,root=root,nodes=nam, order=TRUE) 
-
-  ## collapse 'singleton nodes' with only one child
-  if ( !full ) {
-    if ( verb ) cat(paste("done. collapsing singletons!\n"),file=stderr())
-    #require("ape")
-    tree <- ape::collapse.singles(tree)
-  }
-  ## TODO: is this redundant by getChildren reordering?
-  ## problem: reorder.phylo can't allocate too big vector!! 16.0 Gb WHY?
-  #tree <- reorder.phylo(tree,"cladewise") 
-
-  if ( verb ) cat(paste("done!\n"),file=stderr())
-  
-  list(tree=tree, rank=rank)
+    
+    if ( verb ) cat(paste("collecting lineages, may take long!",
+                          length(ids), "taxa ..."),file=stderr())
+    
+    ## collect parent lineages for all IDs
+    edges <- getAllParents(ids, tax, rootid="1",dbug=dbug)
+    
+    ## are there still duplicated?
+    if ( sum(duplicated(edges[,"child"]))>0 )
+        stop("duplicated edges found; should not happen!?")
+    ##edges <- edges[!duplicated(edges[,"child"]),]
+    
+    if ( verb )
+        cat(paste(" ... done. Sorting",nrow(edges),"edges and",
+                  "creating phylo object ...\n"),file=stderr())
+    
+    ## find root - there can only be one, it should be "1" for NCBI!
+    ## TODO: stop on or allow multiple?)
+    root <- unique(edges[which(!edges[,"parent"] %in%
+                               edges[,"child"]),"parent"])
+    ## convert named edges to phylo object!
+    pars <- edges[,1]
+    names(pars) <- edges[,2]
+    tmp <- list()
+    tmp$parents <- pars
+    tmp$names <- tax$names
+    tree <- tax2phylo(tax=tmp, root=root, names=names, order=TRUE) 
+    
+    ## collapse 'singleton nodes' with only one child
+    if ( !full ) {
+        if ( verb ) cat(paste("done. collapsing singletons!\n"),file=stderr())
+        tree <- ape::collapse.singles(tree)
+    }
+    ## TODO: is this redundant by getChildren reordering?
+    ## problem: reorder.phylo can't allocate too big vector!! 16.0 Gb WHY?
+    ##tree <- reorder.phylo(tree,"cladewise") 
+    
+    if ( verb ) cat(paste("done!\n"),file=stderr())
+    
+    list(tree=tree, rank=tax$rank)
 }
 
 
@@ -322,11 +333,10 @@ getRank <- function(txid, tax, ranks=c("phylum","species"), names=FALSE) {
     txid <- as.character(txid)
 
     ## replace obsolete IDs
-    txid[txid%in%names(tax$merged)] <-
-        tax$merged[txid[txid%in%names(tax$merged)]]
+    txid <- updateIDs(txid, tax) 
 
     ## remove non-present IDs
-    na <-!txid%in%tax$taxon[,2]
+    na <-!txid%in%names(tax$parents)
     if ( sum(na)>0 )
         warning(sum(na), " IDs not found in tree: ",
                 paste(txid[na], collapse=";"))
@@ -336,7 +346,7 @@ getRank <- function(txid, tax, ranks=c("phylum","species"), names=FALSE) {
     ## then use this edge list below
     all <- matrix(NA, nrow=length(txid), ncol=length(ranks))
     all[!na,] <- t(sapply(txid[!na], function(id) {
-
+        
         ## get complete lineage
         ## TODO: make this more efficient for similar taxa!
         lineage <- getParents(id, tax=tax)
@@ -354,7 +364,6 @@ getRank <- function(txid, tax, ranks=c("phylum","species"), names=FALSE) {
         ares[ridx] <- res
         ares
     }))
-    #all <- t(all)
     colnames(all) <- ranks
     all
 }
