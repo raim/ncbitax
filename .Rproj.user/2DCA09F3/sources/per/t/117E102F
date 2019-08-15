@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1530862710985.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3654425807",
+    "id" : "117E102F",
+    "lastKnownWriteTime" : 1530865404,
+    "last_content_update" : 1530865404342,
+    "path" : "~/programs/gIScanner/R/cmchainer.R",
+    "project_path" : "R/cmchainer.R",
+    "properties" : {
+        "cursorPosition" : "869,1",
+        "scrollLine" : "869"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

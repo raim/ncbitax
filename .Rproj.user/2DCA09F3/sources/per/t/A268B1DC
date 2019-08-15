@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1530863440109.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "1995317127",
+    "id" : "A268B1DC",
+    "lastKnownWriteTime" : 1527186169,
+    "last_content_update" : 1527186169,
+    "path" : "~/programs/gIScanner/R/taxonomy.R",
+    "project_path" : "R/taxonomy.R",
+    "properties" : {
+        "cursorPosition" : "2,9",
+        "scrollLine" : "0"
+    },
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
