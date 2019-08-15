@@ -19,35 +19,39 @@ addNode <- function(tree, id, tax) {
 
 #' get lowest common ancestor of nodes 'ids'
 #'
-#' takes an NCBI taxonomy ID and the NCBI taxonomy tree, and reports
+#' takes an NCBI taxonomy ID and the NCBI taxonomy object, and reports
 #' the lowest common ancestor of all taxa
 #' TODO: either use tax (named edges) or rename and write function for tax
 #' @param ids node IDs for which ancestors should be reported
-#' @param tax taxonomy tree
+#' @param tax NCBI taxonomy object
 #' @param rootid ID of the taxonomic class to be considered as root
 #' @param dbug print debug messages
 #' @export
 getAncestor <- function(ids, tax, rootid="1", dbug=FALSE) {
 
-  anc <- unique(ids)
+    anc <- unique(ids)
 
-  ## return if only one node in 'ids'
-  if ( length(anc)==1 ) return(anc)
+    ## return if only one node in 'ids'
+    if ( length(anc)==1 ) return(anc)
 
-  ## get subtree for only "ids" nodes/leaves
-  st <- getAllParents(ids, tax, rootid=rootid, dbug=dbug)
-  root <- unique(st[!st[,1]%in%st[,2],1])
-  if ( length(root)!=1 ) stop("there can only be one root")
-  if ( sum(!st[,2]%in% st[,1])==1 ) # all ids in single lineage: get highest
-    anc <- ids[ids %in% st[,1]][1]
-  else { # several lineages
-    ## order 'cladewise'
-    st <- getChildren(root, st)
-    ## get first branch in 'cladewise' ordered tree (i.e. skip 
-    ## singelton chain to root)
-    anc <- names(which(table(st[,1])>1)[1])
-  }  
-  anc
+    ## get subtree for only "ids" nodes/leaves
+    st <- getAllParents(ids, tax, rootid=rootid, dbug=dbug)
+    
+    root <- unique(st[!st%in%names(st)])
+    if ( length(root)!=1 ) stop("there can only be one root")
+    
+    if ( sum(!names(st)%in% st)==1 ) # all ids in single lineage: get highest
+        anc <- ids[ids %in% st][1]
+    else { # several lineages
+        ## order 'cladewise'
+        tmp <- list()
+        tmp$parents <- st
+        st <- getChildren(root, tmp)
+        ## get first branch in 'cladewise' ordered tree (i.e. skip 
+        ## singelton chain to root)
+        anc <- names(which(table(st)>1)[1])
+    }  
+    anc
 }
 
 ## loop over getParents for severals taxon IDs; avoids multiple
@@ -61,7 +65,7 @@ getAllParents <- function(ids, tax, rootid="1", dbug=FALSE) {
     if ( dbug )
       cat(paste("parents for id", id, ";",
                 round(which(ids==id)/length(ids),2),"done\n"), file=stderr())
-    edges <- rbind(edges,getParents(id,tax,skip=edges,rootid=rootid,dbug=dbug))
+    edges <- c(edges,getParents(id,tax,skip=edges,rootid=rootid,dbug=dbug))
   }
   edges
 }
@@ -69,7 +73,9 @@ getAllParents <- function(ids, tax, rootid="1", dbug=FALSE) {
 ## simple lineage retrieval, returns a single lineage vector
 #' @export
 get.parents <- function(id, tax, skip=NULL) {
-  if ( id%in%tax[,2] & !id%in%skip ) id<-c(id,get.parents(tax[tax[,2]==id,1],tax,skip=skip))
+    if ( id%in%names(tax$parents) & !id%in%skip )
+        id<-c(id,get.parents(tax$parents[names(tax$parents)==id],
+                             tax,skip=skip))
   id
 }
 
@@ -80,27 +86,15 @@ get.parents <- function(id, tax, skip=NULL) {
 #' @export
 getParents <- function(id, tax, skip=NULL, rootid="1", verb=TRUE, dbug=FALSE) {
 
-    ## full taxonomy or just the edge table?
-    ## TODO: change function to use full taxonomy list by parseNCBITaxonomy
-    all <- NULL
-    if ( typeof(tax)=="list" ) {
-        all <- tax
-        tax <- tax$taxon
-    }
-    
-  childCol <- "child"
-  if ( !childCol %in% colnames(tax) ) childCol <- 2
-  parntCol <- "parent"
-  if ( !parntCol %in% colnames(tax) ) parntCol <- 1
-   
-    if ( !id %in% tax[,childCol] ) 
+    ## not present?
+    if ( !id %in% names(tax$parents) ) 
         ## check "merged" in full taxonomy list
         if ( "merged"%in%names(all) )
             id <- updateIDs(id=id, tax=tax, verb=verb)
     
     ## does this ever happen for valid tax ids?
     ## (function should never be called for root node)
-    if ( !id %in% tax[,childCol] ) {
+    if ( !id %in% names(tax$parents) ) {
         if ( id != rootid )
             warning(paste(id, "not found and skipped.\n"))
         else if ( dbug ) cat(paste("found root\n"))
@@ -108,23 +102,23 @@ getParents <- function(id, tax, skip=NULL, rootid="1", verb=TRUE, dbug=FALSE) {
     }
   
   ## is id already present?
-  if ( id %in% c(skip) ) {
+  if ( id %in% c(skip,names(skip)) ) {
     if ( dbug ) cat(paste(id,"id present.\n"),file=stderr())
     return(NULL)
   }
   
   ## new edges, start from id as child
-  nedges <- tax[tax[,childCol]==id,]
-  parent <- nedges[parntCol]
+  nedges <- tax$parents[names(tax$parents)==id] # tax[tax[,childCol]==id,]
+  parent <- nedges
   
   ## check if lineage is already present in 'skip' edges?
-  linedone <- parent %in% skip[,childCol]
+  linedone <- parent %in% names(skip) #skip[,childCol]
   if ( dbug & linedone ) cat(paste(parent,"lineage present.\n"),file=stderr())
 
   ## recursive parent retrieval until root is reached
   if ( parent != rootid & !linedone ) 
-    nedges <- rbind(getParents(parent,tax,skip=skip, rootid=rootid,dbug=dbug),
-                    nedges)
+    nedges <- c(getParents(parent,tax,skip=skip, rootid=rootid,dbug=dbug),
+                nedges)
   nedges
 }
 
@@ -144,24 +138,21 @@ get.children <- function(id, tax, skip=NULL) {
 #' @export
 getChildren <- function(id, tax) {
 
-  childCol <- "child"
-  if ( !childCol %in% colnames(tax) ) childCol <- 2
-  parntCol <- "parent"
-  if ( !parntCol %in% colnames(tax) ) parntCol <- 1
-
-  idcs <- which(tax[,parntCol]==id)
-  srtedg <- NULL ## leave, if no idcs
-  ## recursive call for all children
-  for ( idx in idcs ) 
-    srtedg <- rbind(srtedg,tax[idx,],getChildren(tax[idx,childCol],tax))
-  srtedg
+    idcs <- which(tax$parent==id)
+    srtedg <- NULL ## leave, if no idcs
+    ## recursive call for all children
+    for ( idx in idcs ) 
+        srtedg <- c(srtedg, names(tax$parent[idx]),
+                    getChildren(names(tax$parent[idx]),tax))
+    srtedg <- tax$parent[srtedg]
+    srtedg
 }
 
 ## load tbi taxonomy files
 ## TODO: children only have 1 parent -> convert edge list to hash
 #' @export
-parseNCBITaxonomy <- function(taxd, species=FALSE, ranks=FALSE, phylo=FALSE,
-                              order=FALSE, merged=FALSE, deleted=FALSE,
+parseNCBITaxonomy <- function(taxd, names=TRUE, ranks=TRUE, 
+                              order=TRUE, merged=TRUE, deleted=FALSE,
                               verb=TRUE) {
   
     ## read NCBI taxonomy
@@ -174,25 +165,22 @@ parseNCBITaxonomy <- function(taxd, species=FALSE, ranks=FALSE, phylo=FALSE,
     tax <- read.table(taxf,header=FALSE, sep="|")
     edges <- cbind(parent=as.character(tax[,2]),child=as.character(tax[,1]))
 
-    ## TODO - 201908: switch edges to hash
-    if ( FALSE ) {
-       parent <- as.character(tax[,2])
-       names(parent) <-  tax[,1] 
-    }
+    ## MAIN EDGE LIST as hash `parent[child]`
+    parent <- as.character(tax[,2])
+    names(parent) <-  tax[,1] 
+    ## rm self-references, (in nodes.dmp root is parent of itself)
+    parent <- parent[parent!=names(parent)]
     
     ## get ranks
     rank <- NULL
     if ( ranks ) {
         rank <- gsub("\t","",as.character(tax[,3]))
-        names(rank) <- edges[,"child"]
+        names(rank) <- tax[,1] 
     }
-    
-    ## rm self-references, (in nodes.dmp root is parent of itself)
-    edges <- edges[edges[,1]!=edges[,2],]
     
     ## read species names
     nam <- NULL
-    if ( species ) {
+    if ( names ) {
         if ( verb )
             cat(paste("parsing scientific names, takes long\n"),file=stderr())
         namf <- gsub("nodes","names",taxf)
@@ -224,13 +212,7 @@ parseNCBITaxonomy <- function(taxd, species=FALSE, ranks=FALSE, phylo=FALSE,
     ## TODO: parse deleted nodes
     
     ## TODO: convert to tree
-    if ( phylo ) {
-        if ( verb ) cat(paste("generating phylo object\n"),file=stderr())
-        ## TODO: reorder rank if order=TRUE!
-        return(list(phylo=tax2phylo(edges=edges, root="1", nodes=nam,
-                                    order=order),
-                    rank=rank, merged=mrg))
-    } else return(list(taxon=edges, names=nam, rank=rank, merged=mrg))
+    return(list(parents=parent, names=nam, rank=rank, merged=mrg))
     
 }
 
