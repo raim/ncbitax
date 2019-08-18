@@ -37,7 +37,7 @@ edg2idx <- function(edges, parentCol=1, childCol=2) {
     if ( sum(duplicated(edges[,childCol]))>0 )
         stop("duplicated children (DAG) not allowed")
 
-    idx <- edges[,parentCol]
+    idx <- as.character(edges[,parentCol])
     names(idx) <- edges[,childCol]
     idx
 }
