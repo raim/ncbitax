@@ -28,10 +28,15 @@ sudo R CMD INSTALL ncbitax_0.0.1.tar.gz
 
 ## TODO
 
+* improve speed by using more efficient indexed tree searches, eg.
+via separate package or Rcpp
+
 * add current NCBI taxonomy as data object or generate a subset,
 eg. cyanobacteria
 * provide download & unpack function
 * check whether functionalities are present in taxize package
-* improve speed by using more efficient indexed tree searches, eg.
-via separate package or Rcpp
-
+* parse other formats, eg. newick, phylo object
+* adapt and copy cmpTaxa.R and tax2newick.R rscripts from gIScanner
+to here
+* add a high-level function: mapTaxa to find the shortest
+paths from query to target taxon IDs
