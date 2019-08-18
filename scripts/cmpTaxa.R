@@ -11,7 +11,7 @@
 ##
 #scripts/cmpTaxa.R  -txd $datpath  -tf ${datpath}/LTPs132_SSU_tree2tax.dat -sf $infile -out $outpath -xf ${outpath}/species2silva_tree.RData 
 
-## get directory of utils
+
 library(ncbitax)
 
 ## parse commandline into normal variables
@@ -299,7 +299,7 @@ if ( file.exists(file.name) ){
   cat(paste("WARNING: overwriting", file.name, "\n"),file=stderr())
   unlink(out)
 }
-write.table(results,file.name,row.names=FALSE,quote=FALSE,sep="\t")
+write.table(results,file.name,row.names=FALSE,quote=FALSE,sep="\t",na="")
 
 cat(paste("... done.\n"),file=stderr())
 
