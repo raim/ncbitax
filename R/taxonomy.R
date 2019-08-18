@@ -80,6 +80,7 @@ getAncestor <- function(ids, tax, root="1", names=FALSE, dbug=FALSE) {
 #' getAllParents(c("1148","1140"), tax)
 #' @export
 getAllParents <- function(ids, tax, root="1", names=FALSE, dbug=FALSE) {
+
     edges <- NULL
     for ( id in ids ) {
         if ( dbug )
@@ -131,12 +132,6 @@ get.parents <- function(id, tax, skip=NULL) {
 getParents <- function(id, tax, skip=NULL, root="1", names=FALSE,
                        verb=TRUE, dbug=FALSE) {
 
-    ## not present?
-    if ( !id %in% names(tax$parents) ) 
-        ## check "merged" in full taxonomy list
-        if ( "merged"%in%names(all) )
-            id <- updateIDs(ids=id, tax=tax, verb=verb)
-    
     ## does this ever happen for valid tax ids?
     ## (function should never be called for root node)
     if ( !id %in% names(tax$parents) ) {
@@ -260,7 +255,8 @@ parseNCBITaxonomy <- function(taxd, names=TRUE, ranks=TRUE, merged=TRUE,
                   " from '",taxd,"'\n",sep=""),file=stderr())
     
     taxf <- file.path(taxd, "nodes.dmp")
-    tax <- read.table(taxf,header=FALSE, sep="|")
+    tax <- read.table(taxf,header=FALSE, sep="|",
+                      comment.char="")
     edges <- cbind(parent=as.character(tax[,2]),child=as.character(tax[,1]))
 
     ## MAIN EDGE LIST as hash `parent[child]`
@@ -283,7 +279,8 @@ parseNCBITaxonomy <- function(taxd, names=TRUE, ranks=TRUE, merged=TRUE,
         if ( verb )
             cat(paste("parsing merged/obsolete IDs\n"),file=stderr())
         mrgf <- gsub("nodes","merged",taxf)
-        mrg <- read.table(mrgf,header=FALSE, sep="|", fill=FALSE,quote ="")
+        mrg <- read.table(mrgf,header=FALSE, sep="|", fill=FALSE,quote ="",
+                          comment.char="")
         nms <- mrg[,2]
         names(nms) <- mrg[,1]
         mrg <- nms
@@ -301,7 +298,8 @@ parseNCBITaxonomy <- function(taxd, names=TRUE, ranks=TRUE, merged=TRUE,
         namf <- gsub("nodes","names",taxf)
         ##fill=T because "line 1979/2105 did not have 5 elements" ??
         ## TODO: does this cause errors??
-        nam <- read.table(namf,header=FALSE, sep="|", fill=TRUE,quote ="")
+        nam <- read.table(namf,header=FALSE, sep="|", fill=TRUE,quote ="",
+                          comment.char="")
         nam <- nam[grep("scientific name",nam[,4]),]
         nam <- cbind(as.character(nam[,1]),
                      gsub("\t","",as.character(nam[,2])))
@@ -312,8 +310,12 @@ parseNCBITaxonomy <- function(taxd, names=TRUE, ranks=TRUE, merged=TRUE,
         nam <- nms
     }
     
-    ## TODO: convert to tree
-    return(list(parents=parent, names=nam, rank=rank, merged=mrg))
+    ## TODO: order for more efficient searches?
+    ## TODO: check class NCBItaxonomy?
+    
+    tax <- list(parents=parent, names=nam, rank=rank, merged=mrg)
+    class(tax) <- "NCBItaxonomy"
+    tax
     
 }
 
@@ -446,23 +448,27 @@ tax2newick <- function(ids, tax, names=FALSE, full=FALSE,ranks=FALSE,
 #' @param tax NCBI taxonomy object
 #' @param ranks vector of ranks to retrieve
 #' @param names return taxon names instead of ids
+#' @param reduce call \code{\link{reduceTaxonomy}} before search; untested
+#' but this makes subsequent search faster by using \code{\link{getAllParents}}
+#' first to reduce taxonomy to sub-tree for \code{ids}
 #' @examples
 #' getRank(c("1148","1140"), tax, names=TRUE,
 #'         ranks=c("superkingdom","phylum","species"))
 #' @export
-getRank <- function(ids, tax, ranks=c("phylum","species"), names=FALSE) {
+getRank <- function(ids, tax, ranks=c("phylum","species"),
+                    names=FALSE, reduce=TRUE) {
 
     ## make sure to handle these as characters
     ids <- as.character(ids)
-
-    ## replace obsolete IDs
-    ids <- updateIDs(ids, tax) 
 
     ## remove non-present IDs
     na <-!ids%in%names(tax$parents)
     if ( sum(na)>0 )
         warning(sum(na), " IDs not found in tree: ",
                 paste(ids[na], collapse=";"))
+
+    if ( reduce )
+        tax <- reduceTaxonomy(ids, tax)
     
     ## TODO: more efficient while loop that ends at highest rank!
     ## TODO: call getAllParents for multiple txids to reduce tree,
@@ -491,11 +497,53 @@ getRank <- function(ids, tax, ranks=c("phylum","species"), names=FALSE) {
     all
 }
 
+
+#' reduced taxonomy tree for faster searches
+#'
+#' This reduces the full NCBI taxonomy to the subset
+#' containing all taxons in \code{ids}. This makes all
+#' subsequent searches much faster.
+#' @param ids vector of taxon IDs 
+#' @param tax NCBI taxonomy object
+#' @examples
+#' rtax <- reduceTaxonomy(c("1148","1140"), tax)
+#' lapply(tax, length)
+#' lapply(rtax, length)
+#' @export
+reduceTaxonomy <- function(ids, tax) {
+
+    ## exception: call updateIDs here, since it would
+    ## hamper all subsequent searches to loose them
+    ids <- updateIDs(ids, tax)
+
+    ## get all parents up to root
+    pars <- getAllParents(taxids, tax, root="1")
+
+    ## generate reduced taxonomy object
+    rtax <- tax
+
+    ## edge list: named vector parent[child]
+    rtax$parents <- pars[,1]
+    names(rtax$parents) <- pars[,2]
+    ## scientific names
+    if ( "names" %in% names(tax) )
+        rtax$names <- rtax$names[c(pars)] #[c(pars)%in%names(rtax$names)]
+    if ( "rank" %in% names(tax) )
+        rtax$rank <- rtax$rank[c(pars)] #[c(pars)%in%names(rtax$names)]
+
+    ## but keep full merged list!
+    
+    class(rtax) <- "NCBItaxonomy"
+    rtax
+}
+
 #' update a list of taxonomy IDs
 #'
 #' Looks in merged node list from file \code{merged.dmp}, whether
 #' the passed \code{ids} have been replaced (merged) and returns
 #' a list of updated (where in merged) ids.
+#' It is recommended to run this on all IDs before using other
+#' functions of this package!
 #' @param ids vector of taxon IDs
 #' @param tax NCBI taxonomy object
 #' @param verb print progress messages

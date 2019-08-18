@@ -17,4 +17,6 @@ updateIDs(ids, tax, verb = TRUE)
 Looks in merged node list from file \code{merged.dmp}, whether
 the passed \code{ids} have been replaced (merged) and returns
 a list of updated (where in merged) ids.
+It is recommended to run this on all IDs before using other
+functions of this package!
 }

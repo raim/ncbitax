@@ -4,7 +4,8 @@
 \alias{getRank}
 \title{return requested taxonomy ranks, starting from taxid}
 \usage{
-getRank(ids, tax, ranks = c("phylum", "species"), names = FALSE)
+getRank(ids, tax, ranks = c("phylum", "species"), names = FALSE,
+  reduce = TRUE)
 }
 \arguments{
 \item{ids}{vector of taxon IDs}
@@ -14,6 +15,10 @@ getRank(ids, tax, ranks = c("phylum", "species"), names = FALSE)
 \item{ranks}{vector of ranks to retrieve}
 
 \item{names}{return taxon names instead of ids}
+
+\item{reduce}{call \code{\link{reduceTaxonomy}} before search; untested
+but this makes subsequent search faster by using \code{\link{getAllParents}}
+first to reduce taxonomy to sub-tree for \code{ids}}
 }
 \description{
 return requested taxonomy ranks, starting from taxid
