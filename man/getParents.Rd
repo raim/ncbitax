@@ -8,7 +8,7 @@ getParents(id, tax, skip = NULL, root = "1", names = FALSE,
   verb = TRUE, dbug = FALSE)
 }
 \arguments{
-\item{id}{a taxon ID}
+\item{id}{a single taxon ID}
 
 \item{tax}{NCBI taxonomy object}
 
@@ -25,9 +25,10 @@ from \code{\link{getAllParents}})}
 \item{dbug}{print debug messages}
 }
 \description{
-Returns edge table of parent lineage until \code{root}.
+Returns an edge table of the parent lineage until \code{root}.
 }
 \examples{
-getParents("1148", tax)
-getParents("1140", tax, rooid="1783272")
+getParents("1140", tax)
+getParents("1148", tax, root="1783272")
+getParents("1048", tax, root="1783272") # root not in lineage!
 }

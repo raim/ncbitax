@@ -18,8 +18,9 @@ getAllParents(ids, tax, root = "1", names = FALSE, dbug = FALSE)
 \item{dbug}{print debug messages}
 }
 \description{
-Loops over getParents for severals taxon IDs; avoids multiple
-lineage retrieval by passing existing edges to the recursive function.
+Loops over getParents for severals taxon IDs and avoids multiple
+lineage retrieval operations by passing already found edges to the
+\code{skip} option of the recursive function.
 }
 \examples{
 getAllParents(c("1148","1140"), tax)

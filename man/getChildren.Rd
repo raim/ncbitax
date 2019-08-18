@@ -7,7 +7,7 @@
 getChildren(id, tax, names = FALSE)
 }
 \arguments{
-\item{id}{a taxon ID}
+\item{id}{a single taxon ID}
 
 \item{tax}{NCBI taxonomy object}
 

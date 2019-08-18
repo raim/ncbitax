@@ -2,28 +2,18 @@
 % Please edit documentation in R/taxonomy.R
 \name{getRank}
 \alias{getRank}
-\title{get NCBI taxonomy ranks}
+\title{gets taxon ranks from taxon IDs}
 \usage{
-getRank(ids, tax, ranks = c("phylum", "species"), names = FALSE,
-  reduce = FALSE)
+getRank(ids, tax)
 }
 \arguments{
-\item{ids}{vector of taxon IDs}
+\item{ids}{vector or edge table of taxon IDs}
 
 \item{tax}{NCBI taxonomy object}
-
-\item{ranks}{vector of ranks to retrieve}
-
-\item{names}{return taxon names instead of ids}
-
-\item{reduce}{call \code{\link{reduceTaxonomy}} before search; untested
-but this makes subsequent search faster by using \code{\link{getAllParents}}
-first to reduce taxonomy to sub-tree for \code{ids}}
 }
 \description{
-get NCBI taxonomy ranks
+gets taxon ranks from taxon IDs
 }
 \examples{
-getRank(c("1148","1140"), tax, names=TRUE,
-        ranks=c("superkingdom","phylum","species"))
+getRank(c("1148","1140"), tax)
 }
