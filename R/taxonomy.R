@@ -1,7 +1,17 @@
+#' ncbitax: a simple NCBI taxonomy parser
+#'
+#' Similar to functions provided by ape and phylobase,
+#' but specific for NCBI Taxonomy. 
+#'@author Rainer Machne \email{machne@hhu.de}
+#'@docType package
+#'@name ncbitax
+#'@importFrom utils read.table
+NULL # this just ends the global package documentation
 
 ## PHYLOGENY/TAXONOMY: TREE PARSING AND GENERATION
 ## similar to functions provided by ape and phylobase,
 ## but specific for NCBI Taxonomy
+
 
 ## TODO: remove singular root chain
 trimRoot <- function(tax, ids) {}
@@ -16,17 +26,18 @@ addNode <- function(tree, id, tax) {
   ## exist
 }
 
-#' get lowest common ancestor of nodes 'ids'
+#' get lowest common ancestor 
 #'
-#' takes an NCBI taxonomy ID and the NCBI taxonomy object, and reports
-#' the lowest common ancestor of all taxa
-#' TODO: either use tax (named edges) or rename and write function for tax
-#' @param ids node IDs for which ancestors should be reported
+#' retrieves the lowest common ancestor
+#' @param ids vector of taxon IDs 
 #' @param tax NCBI taxonomy object
-#' @param rootid ID of the taxonomic class to be considered as root
+#' @param root taxon ID of the taxonomic class to be considered as root
+#' @param names return taxon names instead of ids
 #' @param dbug print debug messages
+#' @examples
+#' getAncestor(ids=c("1148","1140"), tax)
 #' @export
-getAncestor <- function(ids, tax, rootid="1", dbug=FALSE) {
+getAncestor <- function(ids, tax, root="1", names=FALSE, dbug=FALSE) {
 
     anc <- unique(ids)
 
@@ -34,7 +45,7 @@ getAncestor <- function(ids, tax, rootid="1", dbug=FALSE) {
     if ( length(anc)==1 ) return(anc)
 
     ## get subtree for only "ids" nodes/leaves
-    st <- getAllParents(ids, tax, rootid=rootid, dbug=dbug)
+    st <- getAllParents(ids, tax, root=root, dbug=dbug)
     
     root <- unique(st[!st[,1]%in%st[,2],1])
     if ( length(root)!=1 ) stop("there can only be one root")
@@ -50,28 +61,49 @@ getAncestor <- function(ids, tax, rootid="1", dbug=FALSE) {
         ## get first branch in 'cladewise' ordered tree (i.e. skip 
         ## singelton chain to root)
         anc <- names(which(table(st[,1])>1)[1])
-    }  
-    anc
+    }
+    if ( names ) getNames(anc, tax)
+    else anc
 }
 
-## loop over getParents for severals taxon IDs; avoids multiple
-## lineage retrieval by passing existing edges to the recursive function
-## call
+#' get common parents for a list of taxon IDs
+#' 
+#' Loops over getParents for severals taxon IDs; avoids multiple
+#' lineage retrieval by passing existing edges to the recursive function.
 ## TODO: what is the order of edges returned!?
+#' @param ids vector of taxon IDs 
+#' @param tax NCBI taxonomy object
+#' @param root taxon ID of the taxonomic class to be considered as root
+#' @param names return taxon names instead of ids
+#' @param dbug print debug messages
+#' @examples
+#' getAllParents(c("1148","1140"), tax)
 #' @export
-getAllParents <- function(ids, tax, rootid="1", dbug=FALSE) {
-  edges <- NULL
-  for ( id in ids ) {
-    if ( dbug )
-      cat(paste("parents for id", id, ";",
-                round(which(ids==id)/length(ids),2),"done\n"), file=stderr())
-    edges <- rbind(edges,
-                   getParents(id,tax,skip=edges,rootid=rootid,dbug=dbug))
-  }
-  edges
+getAllParents <- function(ids, tax, root="1", names=FALSE, dbug=FALSE) {
+    edges <- NULL
+    for ( id in ids ) {
+        if ( dbug )
+            cat(paste("parents for id", id, ";",
+                      round(which(ids==id)/length(ids),2),"done\n"),
+                file=stderr())
+        edges <- rbind(edges,
+                       getParents(id,tax,skip=edges,root=root,names=FALSE,
+                                  dbug=dbug))
+    }
+    if ( names ) getNames(edges, tax)
+    else edges
 }
 
-## simple lineage retrieval, returns a single lineage vector
+#' simple lineage retrieval
+#'
+#' returns a simple lineage vector
+#' @param id a taxon ID
+#' @param tax NCBI taxonomy object
+#' @param skip edges table to skip: if the node \code{id} is already present,
+#' the recursive function is not called
+#' @examples
+#' get.parents("1148", tax)
+#' get.parents("1140", tax)
 #' @export
 get.parents <- function(id, tax, skip=NULL) {
     if ( id%in%names(tax$parents) & !id%in%skip )
@@ -80,23 +112,35 @@ get.parents <- function(id, tax, skip=NULL) {
   id
 }
 
-## lineage retrieval with 'existence check', returns edges!
-## extract parents of one node from complete taxonomy tree
-## 'skip' edges can be passed, and if the node 'id' is already present,
-## the recursive function is not called
+#' lineage retrieval 
+#'
+#' Returns edge table of parent lineage until \code{root}.
+#' @param id a taxon ID
+#' @param tax NCBI taxonomy object
+#' @param root taxon ID of the taxonomic class to be considered as root
+#' @param skip edges table to skip, if the node \code{id} is already present,
+#' the recursive function is not called (used internally
+#' from \code{\link{getAllParents}})
+#' @param names return taxon names instead of ids
+#' @param verb print progress messages
+#' @param dbug print debug messages
+#' @examples
+#' getParents("1148", tax)
+#' getParents("1140", tax, rooid="1783272")
 #' @export
-getParents <- function(id, tax, skip=NULL, rootid="1", verb=TRUE, dbug=FALSE) {
+getParents <- function(id, tax, skip=NULL, root="1", names=FALSE,
+                       verb=TRUE, dbug=FALSE) {
 
     ## not present?
     if ( !id %in% names(tax$parents) ) 
         ## check "merged" in full taxonomy list
         if ( "merged"%in%names(all) )
-            id <- updateIDs(id=id, tax=tax, verb=verb)
+            id <- updateIDs(ids=id, tax=tax, verb=verb)
     
     ## does this ever happen for valid tax ids?
     ## (function should never be called for root node)
     if ( !id %in% names(tax$parents) ) {
-        if ( id != rootid )
+        if ( id != root )
             warning(paste(id, "not found and skipped.\n"))
         else if ( dbug ) cat(paste("found root\n"))
         return(NULL)
@@ -119,15 +163,26 @@ getParents <- function(id, tax, skip=NULL, rootid="1", verb=TRUE, dbug=FALSE) {
     if ( dbug & linedone ) cat(paste(parent,"lineage present.\n"),file=stderr())
     
     ## recursive parent retrieval until root is reached
-    if ( parent != rootid & !linedone ) 
+    if ( parent != root & !linedone ) 
         nedges <- rbind(getParents(parent, tax,
-                                   skip=skip, rootid=rootid,dbug=dbug),
+                                   skip=skip, root=root,dbug=dbug),
                         nedges)
     colnames(nedges) <- c("parent","child")
-    nedges
+
+    if ( names ) getNames(nedges, tax)
+    else nedges
 }
 
-## simple children retrieval: returns a list of all children
+
+#' simple children retrieval
+#'
+#' returns a vector of all children
+#' @param id a taxon ID
+#' @param tax NCBI taxonomy object
+#' @param skip vectors of ids to "skip", if the node 'id' is already
+#' present in \code{skip}, the recursive function is not called
+#' @examples
+#' get.children("1148", tax)
 #' @export
 get.children <- function(id, tax, skip=NULL) {
   if ( id %in% skip ) return(NULL)
@@ -137,11 +192,16 @@ get.children <- function(id, tax, skip=NULL) {
   srtedg
 }
 
-## get all chilrden of a node
-## does a depth-first search thus returns edges ordered
-## "cladewise" (in package ape)
+#' get all chilrden of a node
+#'
+#' Returns edge table of all descendents. Performs
+#' a depth-first search thus returns ordered edges
+#' (order "cladewise" in package ape).
+#' @param id a taxon ID
+#' @param tax NCBI taxonomy object
+#' @param names return taxon names instead of ids
 #' @export
-getChildren <- function(id, tax) {
+getChildren <- function(id, tax, names=FALSE) {
 
     idcs <- which(tax$parent==id)
     srtedg <- NULL ## leave, if no idcs
@@ -150,15 +210,47 @@ getChildren <- function(id, tax) {
         srtedg <- rbind(srtedg,
                         c(tax$parent[idx],names(tax$parent[idx])),
                         getChildren(names(tax$parent[idx]),tax))
-    #srtedg <- tax$parent[srtedg]
-    srtedg
+    if ( names ) getNames(srtedg, tax)
+    else srtedg
 }
 
-## load tbi taxonomy files
-## TODO: children only have 1 parent -> convert edge list to hash
+#' find taxon ID for species names
+#'
+#' Simply uses base R's \code{\link{grep}} to grep for a
+#' name pattern in the official NCBI taxon names and returns
+#' all matching taxon IDs as a table with columns ID and name.
+#' @param pattern regular expression, see argument \code{pattern}
+#' in \code{\link{grep}}
+#' @param tax NCBI taxonomy object
+#' @param ... arguments to \code{\link{grep}}
+#'@export
+grepName <- function(pattern, tax, ...) {
+    idx <- grep(pattern, tax$names, ...)
+    cbind(ID=names(tax$names)[idx], NAME=tax$names[idx])
+}
+
+#' gets taxon names from taxon IDs
+#' @param ids vector or edge table of taxon IDs 
+#' @param tax NCBI taxonomy object
 #' @export
-parseNCBITaxonomy <- function(taxd, names=TRUE, ranks=TRUE, 
-                              order=TRUE, merged=TRUE, deleted=FALSE,
+getNames <- function(ids, tax) {
+    if ( class(ids)=="matrix" )
+        apply(ids, 2, function(x) tax[["names"]][x])
+    else
+        tax[["names"]][ids]
+}
+
+#' load tbi taxonomy files
+#' @param taxd path to unpacked NCBI taxonomy (taxdump.tar.gz)
+#' @param names load species names, takes long to load!
+#' @param ranks load rank names
+#' @param merged load list of merged (outdated) taxon IDs and their replacement
+#' @param verb print progress messages
+#' @examples
+#' taxdb <- "/data/taxonomy/db"
+#' tax <- parseNCBITaxonomy(taxdb)
+#' @export
+parseNCBITaxonomy <- function(taxd, names=TRUE, ranks=TRUE, merged=TRUE,
                               verb=TRUE) {
   
     ## read NCBI taxonomy
@@ -184,7 +276,24 @@ parseNCBITaxonomy <- function(taxd, names=TRUE, ranks=TRUE,
         names(rank) <- tax[,1] 
     }
     
-    ## read species names
+
+    ## parse merged/updated nodes
+    mrg <- NULL
+    if ( merged ) {
+        if ( verb )
+            cat(paste("parsing merged/obsolete IDs\n"),file=stderr())
+        mrgf <- gsub("nodes","merged",taxf)
+        mrg <- read.table(mrgf,header=FALSE, sep="|", fill=FALSE,quote ="")
+        nms <- mrg[,2]
+        names(nms) <- mrg[,1]
+        mrg <- nms
+    }
+
+    ## TODO: parse deleted nodes
+
+    ## parse species names
+    ## this takes long, and is only required to access
+    ## names for taxon IDs
     nam <- NULL
     if ( names ) {
         if ( verb )
@@ -202,29 +311,26 @@ parseNCBITaxonomy <- function(taxd, names=TRUE, ranks=TRUE,
         names(nms) <- nam[,1]
         nam <- nms
     }
-
-    ## parse merged/updated nodes
-    mrg <- NULL
-    if ( merged ) {
-        if ( verb )
-            cat(paste("parsing merged/obsolete IDs\n"),file=stderr())
-        mrgf <- gsub("nodes","merged",taxf)
-        mrg <- read.table(mrgf,header=FALSE, sep="|", fill=FALSE,quote ="")
-        nms <- mrg[,2]
-        names(nms) <- mrg[,1]
-        mrg <- nms
-    }
-
-    ## TODO: parse deleted nodes
     
     ## TODO: convert to tree
     return(list(parents=parent, names=nam, rank=rank, merged=mrg))
     
 }
 
-## converts an NCBI taxonomy object,
-## to an ape::phylo (TODO: phylobase::phylo4) tree object,
-## optionally renames edges to NCBI taxon names
+## TODO: phylobase::phylo4 tree
+#' converts an NCBI taxonomy object to an ape::phylo tree
+#'
+#' Only a sub-tree until \code{root] is returned. Pptionally renames
+#' edges to NCBI taxon names
+#' @param tax NCBI taxonomy object
+#' @param root taxon ID of the taxonomic class to be considered as root
+#' @param names replace taxon IDs by names
+#' @param order order edges, required for attribute "cladewise" of
+#' the returned \code{ape::phylo} tree
+#' @examples
+#' phy <- tax2phylo(tax, root="1890428", order=TRUE, names=TRUE)
+#' ape::plot.phylo(phy)
+#' @export
 tax2phylo <- function(tax, root="1", names=FALSE, order=FALSE) {
 
 
@@ -270,7 +376,17 @@ tax2phylo <- function(tax, root="1", names=FALSE, order=FALSE) {
     tree
 }
 
-## get NCBI taxonomy from  taxon IDs as tree in newick format
+#' convert NCBI taxonomy sub trees to newick format
+#' @param ids vector of taxon IDs 
+#' @param tax NCBI taxonomy object
+#' @param names replace taxon IDs with names
+#' @param full if  \code{TRUE} \code{singleton} nodes with only
+#' one child will NOT be collapsed
+#' @param ranks add rank information for nodes
+#' @param verb print progress messages
+#' @param dbug print debug messages
+#' @examples
+#' new <- tax2newick(ids=c("1148","1140"), tax=tax, names=TRUE)
 #' @export
 tax2newick <- function(ids, tax, names=FALSE, full=FALSE,ranks=FALSE,
                        verb=FALSE, dbug=FALSE) {
@@ -287,7 +403,7 @@ tax2newick <- function(ids, tax, names=FALSE, full=FALSE,ranks=FALSE,
                           length(ids), "taxa ..."),file=stderr())
     
     ## collect parent lineages for all IDs
-    edges <- getAllParents(ids, tax, rootid="1",dbug=dbug)
+    edges <- getAllParents(ids, tax, root="1",dbug=dbug)
     
     ## are there still duplicated?
     if ( sum(duplicated(edges[,"child"]))>0 )
@@ -325,27 +441,34 @@ tax2newick <- function(ids, tax, names=FALSE, full=FALSE,ranks=FALSE,
 }
 
 
-## NOTE: 201908 - using ranks and merged in full NCBI taxonomy list
-## return requested taxonomy ranks, starting from taxid
-getRank <- function(txid, tax, ranks=c("phylum","species"), names=FALSE) {
+#' return requested taxonomy ranks, starting from taxid
+#' @param ids vector of taxon IDs 
+#' @param tax NCBI taxonomy object
+#' @param ranks vector of ranks to retrieve
+#' @param names return taxon names instead of ids
+#' @examples
+#' getRank(c("1148","1140"), tax, names=TRUE,
+#'         ranks=c("superkingdom","phylum","species"))
+#' @export
+getRank <- function(ids, tax, ranks=c("phylum","species"), names=FALSE) {
 
     ## make sure to handle these as characters
-    txid <- as.character(txid)
+    ids <- as.character(ids)
 
     ## replace obsolete IDs
-    txid <- updateIDs(txid, tax) 
+    ids <- updateIDs(ids, tax) 
 
     ## remove non-present IDs
-    na <-!txid%in%names(tax$parents)
+    na <-!ids%in%names(tax$parents)
     if ( sum(na)>0 )
         warning(sum(na), " IDs not found in tree: ",
-                paste(txid[na], collapse=";"))
+                paste(ids[na], collapse=";"))
     
     ## TODO: more efficient while loop that ends at highest rank!
     ## TODO: call getAllParents for multiple txids to reduce tree,
     ## then use this edge list below
-    all <- matrix(NA, nrow=length(txid), ncol=length(ranks))
-    all[!na,] <- t(sapply(txid[!na], function(id) {
+    all <- matrix(NA, nrow=length(ids), ncol=length(ranks))
+    all[!na,] <- t(sapply(ids[!na], function(id) {
         
         ## get complete lineage
         ## TODO: make this more efficient for similar taxa!
@@ -369,6 +492,13 @@ getRank <- function(txid, tax, ranks=c("phylum","species"), names=FALSE) {
 }
 
 #' update a list of taxonomy IDs
+#'
+#' Looks in merged node list from file \code{merged.dmp}, whether
+#' the passed \code{ids} have been replaced (merged) and returns
+#' a list of updated (where in merged) ids.
+#' @param ids vector of taxon IDs
+#' @param tax NCBI taxonomy object
+#' @param verb print progress messages
 #'@export
 updateIDs <- function(ids, tax, verb=TRUE) {
 
