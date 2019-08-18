@@ -5,9 +5,14 @@ taxonomy, for simple lineage retrieval, and common ancestor searches.
 
 ## Installation, Quick Start & Usage
 
-### With `devtools` from git
+### With [`devtools`](https://cran.r-project.org/package=devtools) from git
 
-### Manual from git 
+```
+library(devtools)
+install_github("raim/ncbitax")
+```
+
+### Source code from `github`
 
 * Download:
 
@@ -27,3 +32,6 @@ sudo R CMD INSTALL ncbitax_0.0.1.tar.gz
 eg. cyanobacteria
 * provide download & unpack function
 * check whether functionalities are present in taxize package
+* improve speed by using more efficient indexed tree searches, eg.
+via separate package or Rcpp
+
