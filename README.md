@@ -16,3 +16,6 @@ R CMD build ncbitax
 sudo R CMD INSTALL ncbitax_0.0.1.tar.gz
 ```
 
+## TODO
+
+* check whether functionalities are present in taxize package
