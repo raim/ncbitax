@@ -2,10 +2,10 @@
 % Please edit documentation in R/taxonomy.R
 \name{getRank}
 \alias{getRank}
-\title{return requested taxonomy ranks, starting from taxid}
+\title{get NCBI taxonomy ranks}
 \usage{
 getRank(ids, tax, ranks = c("phylum", "species"), names = FALSE,
-  reduce = TRUE)
+  reduce = FALSE)
 }
 \arguments{
 \item{ids}{vector of taxon IDs}
@@ -21,7 +21,7 @@ but this makes subsequent search faster by using \code{\link{getAllParents}}
 first to reduce taxonomy to sub-tree for \code{ids}}
 }
 \description{
-return requested taxonomy ranks, starting from taxid
+get NCBI taxonomy ranks
 }
 \examples{
 getRank(c("1148","1140"), tax, names=TRUE,

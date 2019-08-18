@@ -2,7 +2,7 @@
 % Please edit documentation in R/taxonomy.R
 \name{tax2phylo}
 \alias{tax2phylo}
-\title{converts an NCBI taxonomy object to an ape::phylo tree}
+\title{converts an NCBI taxonomy object to an \code{ape::phylo} tree}
 \usage{
 tax2phylo(tax, root = "1", names = FALSE, order = FALSE)
 }
@@ -17,7 +17,7 @@ tax2phylo(tax, root = "1", names = FALSE, order = FALSE)
 the returned \code{ape::phylo} tree}
 }
 \description{
-converts an NCBI taxonomy object to an ape::phylo tree
+converts an NCBI taxonomy object to an \code{ape::phylo} tree
 }
 \examples{
 phy <- tax2phylo(tax, root="1890428", order=TRUE, names=TRUE)

@@ -5,7 +5,7 @@
 #'@author Rainer Machne \email{machne@hhu.de}
 #'@docType package
 #'@name ncbitax
-#'@importFrom utils read.table
+#'@importFrom utils read.table installed.packages
 NULL # this just ends the global package documentation
 
 ## PHYLOGENY/TAXONOMY: TREE PARSING AND GENERATION
@@ -148,10 +148,10 @@ getParents <- function(id, tax, skip=NULL, root="1", names=FALSE,
     }
   
     ## new edges, start from id as child
-    nedges <- tax$parents[names(tax$parents)==id] # tax[tax[,childCol]==id,]
-    parent <- nedges
+    parent <- tax$parents[names(tax$parents)==id] # tax[tax[,childCol]==id,]
+    
     ## edge list
-    nedges <- cbind(nedges, names(nedges))
+    nedges <- cbind(parent, names(parent))
     
     ## check if lineage is already present in 'skip' edges?
     linedone <- parent %in% skip[,2]
@@ -254,9 +254,17 @@ parseNCBITaxonomy <- function(taxd, names=TRUE, ranks=TRUE, merged=TRUE,
         cat(paste("parsing NCBI taxonomy ",
                   " from '",taxd,"'\n",sep=""),file=stderr())
     
+    ## check if read.table is installed, warn otherwise
+    fread.available <- is.element("data.table", installed.packages()[,1])
+    if ( !fread.available )
+        warning("parsing NCBI taxonomy is much faster if package",
+                " read.table is installed (fread)")
+    
     taxf <- file.path(taxd, "nodes.dmp")
-    tax <- read.table(taxf,header=FALSE, sep="|",
-                      comment.char="")
+    if ( fread.available )
+        tax <- data.table::fread(taxf,header=FALSE, sep="|",data.table=FALSE)
+    else
+        tax <- read.table(taxf,header=FALSE, sep="|", comment.char="")
     edges <- cbind(parent=as.character(tax[,2]),child=as.character(tax[,1]))
 
     ## MAIN EDGE LIST as hash `parent[child]`
@@ -279,8 +287,11 @@ parseNCBITaxonomy <- function(taxd, names=TRUE, ranks=TRUE, merged=TRUE,
         if ( verb )
             cat(paste("parsing merged/obsolete IDs\n"),file=stderr())
         mrgf <- gsub("nodes","merged",taxf)
-        mrg <- read.table(mrgf,header=FALSE, sep="|", fill=FALSE,quote ="",
-                          comment.char="")
+        if ( fread.available )
+            mrg <- data.table::fread(mrgf,header=FALSE, sep="|",
+                                     fill=FALSE,quote ="", data.table=FALSE)
+        else mrg <- read.table(mrgf,header=FALSE, sep="|",
+                               fill=FALSE,quote ="",comment.char="")
         nms <- mrg[,2]
         names(nms) <- mrg[,1]
         mrg <- nms
@@ -298,8 +309,12 @@ parseNCBITaxonomy <- function(taxd, names=TRUE, ranks=TRUE, merged=TRUE,
         namf <- gsub("nodes","names",taxf)
         ##fill=T because "line 1979/2105 did not have 5 elements" ??
         ## TODO: does this cause errors??
-        nam <- read.table(namf,header=FALSE, sep="|", fill=TRUE,quote ="",
-                          comment.char="")
+        if ( fread.available )
+            nam <- data.table::fread(namf,header=FALSE, sep="|", fill=TRUE,
+                                     quote ="", data.table=FALSE)
+        else
+            nam <- read.table(namf,header=FALSE, sep="|", fill=TRUE,quote ="",
+                              comment.char="")
         nam <- nam[grep("scientific name",nam[,4]),]
         nam <- cbind(as.character(nam[,1]),
                      gsub("\t","",as.character(nam[,2])))
@@ -320,7 +335,7 @@ parseNCBITaxonomy <- function(taxd, names=TRUE, ranks=TRUE, merged=TRUE,
 }
 
 ## TODO: phylobase::phylo4 tree
-#' converts an NCBI taxonomy object to an ape::phylo tree
+#' converts an NCBI taxonomy object to an \code{ape::phylo} tree
 #'
 #' Only a sub-tree until \code{root] is returned. Pptionally renames
 #' edges to NCBI taxon names
@@ -443,7 +458,7 @@ tax2newick <- function(ids, tax, names=FALSE, full=FALSE,ranks=FALSE,
 }
 
 
-#' return requested taxonomy ranks, starting from taxid
+#' get NCBI taxonomy ranks 
 #' @param ids vector of taxon IDs 
 #' @param tax NCBI taxonomy object
 #' @param ranks vector of ranks to retrieve
@@ -456,7 +471,7 @@ tax2newick <- function(ids, tax, names=FALSE, full=FALSE,ranks=FALSE,
 #'         ranks=c("superkingdom","phylum","species"))
 #' @export
 getRank <- function(ids, tax, ranks=c("phylum","species"),
-                    names=FALSE, reduce=TRUE) {
+                    names=FALSE, reduce=FALSE) {
 
     ## make sure to handle these as characters
     ids <- as.character(ids)
@@ -517,7 +532,7 @@ reduceTaxonomy <- function(ids, tax) {
     ids <- updateIDs(ids, tax)
 
     ## get all parents up to root
-    pars <- getAllParents(taxids, tax, root="1")
+    pars <- getAllParents(ids, tax, root="1")
 
     ## generate reduced taxonomy object
     rtax <- tax
