@@ -26,6 +26,20 @@ addNode <- function(tree, id, tax) {
   ## exist
 }
 
+edg2idx <- function(edges, parentCol=1, childCol=2) {
+    
+    if ( sum(duplicated(edges[,childCol]))>0 )
+        stop("duplicated children (DAG) not allowed")
+
+    idx <- edges[,parentCol]
+    names(idx) <- edges[,childCol]
+    idx
+}
+idx2edg <- function(idx) {
+    edges <- matrix(NA, ncol=2, nrow=length(idx))
+    cbind(parent=idx, child=names(idx))
+}
+
 #' simple lineage retrieval
 #'
 #' returns a simple lineage vector
@@ -291,6 +305,7 @@ parseNCBITaxonomy <- function(taxd, names=TRUE, ranks=TRUE, merged=TRUE,
     edges <- cbind(parent=as.character(tax[,2]),child=as.character(tax[,1]))
 
     ## MAIN EDGE LIST as hash `parent[child]`
+    ## TODO: use edg2idx
     parent <- as.character(tax[,2])
     names(parent) <-  tax[,1] 
     ## rm self-references, (in nodes.dmp root is parent of itself)
