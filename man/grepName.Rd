@@ -19,3 +19,6 @@ Simply uses base R's \code{\link{grep}} to grep for a
 name pattern in the official NCBI taxon names and returns
 all matching taxon IDs as a table with columns ID and name.
 }
+\examples{
+grepName("Synechocystis", tax)
+}

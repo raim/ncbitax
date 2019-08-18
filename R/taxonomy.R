@@ -218,6 +218,8 @@ getChildren <- function(id, tax, names=FALSE) {
 #' in \code{\link{grep}}
 #' @param tax NCBI taxonomy object
 #' @param ... arguments to \code{\link{grep}}
+#' @examples
+#' grepName("Synechocystis", tax)
 #'@export
 grepName <- function(pattern, tax, ...) {
     idx <- grep(pattern, tax$names, ...)
@@ -227,12 +229,27 @@ grepName <- function(pattern, tax, ...) {
 #' gets taxon names from taxon IDs
 #' @param ids vector or edge table of taxon IDs 
 #' @param tax NCBI taxonomy object
+#' @examples
+#' getNames(c("1148","1140"), tax)
 #' @export
 getNames <- function(ids, tax) {
     if ( class(ids)=="matrix" )
         apply(ids, 2, function(x) tax[["names"]][x])
     else
         tax[["names"]][ids]
+}
+
+#' gets taxon ranks from taxon IDs
+#' @param ids vector or edge table of taxon IDs 
+#' @param tax NCBI taxonomy object
+#' @examples
+#' getRanks(c("1148","1140"), tax)
+#' @export
+getRanks <- function(ids, tax) {
+    if ( class(ids)=="matrix" )
+        apply(ids, 2, function(x) tax[["rank"]][x])
+    else
+        tax[["rank"]][ids]
 }
 
 #' load tbi taxonomy files
