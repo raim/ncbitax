@@ -1,12 +1,15 @@
 #!/usr/bin/Rscript
 
+## TODO: fix this, doesnt work anymore in ncbitax
+## due to taxon IDs as characters?
+
 ## calculates taxonomic relations
 ## USAGE eg.
 #datpath="/home/raim/data/introns/prokaryotes_2018/taxonomy"
 #outpath="/home/raim/work/CoilProject/halime/taxonomy/species2silva"
 #infile="/data/topoisomerases/cyanoids.txt"
-#
-#scripts/cmpTaxa.R  -txd $datpath  -tn acc -tf ${datpath}/LTPs132_SSU_tree2tax.dat -sf $infile -out $outpath -xf ${outpath}/species2silva_tree.RData -dbug 
+##
+#scripts/cmpTaxa.R  -txd $datpath  -tf ${datpath}/LTPs132_SSU_tree2tax.dat -sf $infile -out $outpath -xf ${outpath}/species2silva_tree.RData 
 
 ## get directory of utils
 library(ncbitax)
@@ -144,7 +147,7 @@ nodes <- c(tree$tip.label,tree$node.label)
 ## TODO: generate new NCBI tax object, and use this below instead
 ## of tree$edges
 ntax <- list()
-ntax$parents <- edg2idx(taxo$tree)
+ntax$parents <- edg2idx(taxo$tree$edge)
 ntax$rank <- taxo$rank
 
 #warnings(file=stderr()) ## reports missing taxon ids
@@ -202,7 +205,7 @@ for ( i in 1:length(allsrc) ) {
         
         ## get target taxa and ancestor
         ## via the lowest branch between src <-> target
-        pars <- get.parents(nid, ntax) 
+        pars <- as.numeric(get.parents(nid, ntax))
         
         ## 2) is any target a direct ancestor? <- find parent species of strains
         if ( any(pars%in%tid) )  {
@@ -231,7 +234,7 @@ for ( i in 1:length(allsrc) ) {
             ## note: first "parent" is query taxon
             for ( j in 2:length(pars) ) {
                 skip <- pars[1:(j-1)] # skip prev. to save time!
-                cdr <- get.children(pars[j], st, skip=skip)
+                cdr <- as.numeric(get.children(pars[j], st, skip=skip))
                 present <- cdr %in% tid
                 if ( any(present) ) {
                     src2tax[[i]] <- nodes[cdr[present]] #nodes[tid[tid%in%cdr]] 
@@ -259,7 +262,7 @@ for ( i in 1:length(allsrc) ) {
     
     ## if target has "no rank" get next ancestor with rank
     if ( rank[src2anc[i]] == "no rank" ) {
-        id <- nodes[get.parents(id=which(nodes==src2anc[i]), tax)]
+        id <- nodes[as.numeric(get.parents(id=which(nodes==src2anc[i]), ntax))]
         idx <- rank[id] != "no rank"
         if ( any(idx) ) {
             ## take first with rank
@@ -271,7 +274,7 @@ for ( i in 1:length(allsrc) ) {
     if ( dbug ) cat("; done\n")
 }
 
-trgs <- NULL
+trgs <- rep(NA,nrow(sourc))
 if ( tn != "" )
   trgs <- unlist(lapply(src2nam, function(x) paste(x,collapse=";")))
 tids <- unlist(lapply(src2tar, function(x) paste(x,collapse=";")))
