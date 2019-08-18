@@ -26,6 +26,12 @@ addNode <- function(tree, id, tax) {
   ## exist
 }
 
+#' convert edge table to named parent vector
+#' @param edges table with parent and child columns, each row
+#' is an edge in a tree
+#' @param parentCol column with parents
+#' @param childCol column with children
+#' @export
 edg2idx <- function(edges, parentCol=1, childCol=2) {
     
     if ( sum(duplicated(edges[,childCol]))>0 )
@@ -35,6 +41,11 @@ edg2idx <- function(edges, parentCol=1, childCol=2) {
     names(idx) <- edges[,childCol]
     idx
 }
+#' convert named parent vector to edge table
+#'
+#' NOTE: only for trees, does not work for cyclic graphs or DAG.
+#' @param idx vector of parents, named by children
+#' @export
 idx2edg <- function(idx) {
     edges <- matrix(NA, ncol=2, nrow=length(idx))
     cbind(parent=idx, child=names(idx))
