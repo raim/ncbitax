@@ -86,6 +86,11 @@ alltar <- unlist(targtx)
 ## combined list of taxon IDs
 taxids <- unique(c(alltar,allsrc))
 
+## TODO: update IDs before comparing,
+## requires to load taxonomy before constructing
+## saved tree, or update in tree and afterwards
+## OR: update in input
+
 
 ## READ OR GENERATE TAXONOMY
 
@@ -158,7 +163,7 @@ if ( sum(!alltar %in% nodes)>0 )
             paste(alltar[!alltar %in% nodes],collapse=";"), "\n"))
 alltar <- alltar[alltar %in% nodes]
 
-cat(paste("taxonomy loaded; searching closest neighbors ..."),file=stderr())
+cat(paste("taxonomy loaded; searching closest neighbors ...\n"),file=stderr())
 
 
 ## get closest target species for each source
@@ -224,10 +229,11 @@ for ( i in 1:length(allsrc) ) {
             
             ## to save time ??, extract a subtree
             ## NOTE: this doesn't save time apparently
-            ## TODO: what is root here?
+            ## TODO: what is root here? <- should be character?
             if ( sub ) 
                 st <- getAllParents(c(nid,tid),
-                                    ntax, root=length(tree$tip.label)+1,
+                                    ntax,
+                                    root=length(tree$tip.label)+1,
                                     dbug=FALSE)
             else st <- ntax
             
@@ -261,9 +267,9 @@ for ( i in 1:length(allsrc) ) {
     if ( tn!= "" ) src2nam[[i]] <- c(as.character(targt[idx,tn]))
     
     ## if target has "no rank" get next ancestor with rank
-    if ( rank[src2anc[i]] == "no rank" ) {
+    if ( ntax$rank[src2anc[i]] == "no rank" ) {
         id <- nodes[as.numeric(get.parents(id=which(nodes==src2anc[i]), ntax))]
-        idx <- rank[id] != "no rank"
+        idx <- ntax$rank[id] != "no rank"
         if ( any(idx) ) {
             ## take first with rank
             src2anc[i] <- id[which(idx)[1]]
@@ -280,13 +286,13 @@ if ( tn != "" )
 tids <- unlist(lapply(src2tar, function(x) paste(x,collapse=";")))
 txids <- unlist(lapply(src2tax, function(x) paste(x,collapse=";")))
 
-cat(paste("... done. writing results .... "), file=stderr())
+cat(paste("... done. writing results ....\n"), file=stderr())
 results <- cbind.data.frame(sourc,
                             taxdist=s2t.dst,
                             relation=reltype,
                             target.taxon=txids,
                             ancestor=src2anc,
-                            rank=rank[src2anc],
+                            rank=ntax$rank[src2anc],
                             target=trgs,
                             tid=tids,
                             stringsAsFactors=FALSE)
