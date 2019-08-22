@@ -126,8 +126,11 @@ shi <- drop.tip(shi,tree$tip.label[!tree$tip.label%in%rownames(map)])
 ## set root at Gloeobacter violaceus
 shi <- root(shi,grep("7421",shi$tip.label),resolve.root=T)
 
-par(cex=.75)
+plotdev(file.path(tax.path,"cyanobacteria","shih13tree"),
+        type="pdf", width=5, height=7)
+par(cex=.7, mai=c(.1,.1,.1,.1))
 plot(shi, show.node.label=TRUE)
+dev.off()
 
 ## TODO: switch location of Oscillatoria to lie next to chamaesiphon
 
@@ -144,3 +147,6 @@ shih <- cbind(shih, tree.name=map[,2])
 write.table(shih,file.path(tax.path, "cyanobacteria",
                            "shih13_metadata_annotated.tsv"),
             sep="\t", quote=FALSE, na="")
+## write tree with 
+write.tree(shi,file=file.path(tax.path, "cyanobacteria",
+                              "cyanoGEBAspeciesTree_names.txt"))
