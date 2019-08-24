@@ -44,8 +44,9 @@ if ( !exists("sf",mode="character") ) {
 #}
 #if ( !exists("xf",mode="character") ) xf <- ""
 if ( !exists("out",mode="character") ) out <- "./sp2ph"
-if ( !exists("tn",mode="character") ) tn <- "" ## name, acc
-if ( !exists("tidcol",mode="character") ) tidcol <- "" ## 
+## other columns to add
+if ( !exists("tn",mode="character") ) tn <- "" ## eg. ame, acc colun
+if ( !exists("ti",mode="character") ) ti <- "" ## 
 dbug <- as.logical(dbug)
 sub <- as.logical(sub)
 
@@ -264,8 +265,8 @@ for ( i in 1:length(allsrc) ) {
         stop("taxon ", i, " ID ", alltar[i], ": NOTHING FOUND, SHOULDN'T",
              "HAPPEN - BUG??")
 
-    if ( tidcol%in%colnames(targt) )
-        src2tar[[i]] <- c(as.character(targt[idx,tidcol]))
+    if ( ti%in%colnames(targt) )
+        src2tar[[i]] <- c(as.character(targt[idx,ti]))
     if ( tn%in%colnames(targt) )
         src2nam[[i]] <- c(as.character(targt[idx,tn]))
     
@@ -300,7 +301,7 @@ if ( tn != "" ) {
     results <- cbind(results, target.name=trgs)
 }
 tids <- rep(NA,nrow(sourc))
-if ( tidcol != "" ) {
+if ( ti != "" ) {
     tids <- unlist(lapply(src2tar, function(x) paste(x,collapse=";")))
     results <- cbind(results, target.id=tids)
 }
