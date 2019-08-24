@@ -45,6 +45,7 @@ if ( !exists("sf",mode="character") ) {
 #if ( !exists("xf",mode="character") ) xf <- ""
 if ( !exists("out",mode="character") ) out <- "./sp2ph"
 if ( !exists("tn",mode="character") ) tn <- "" ## name, acc
+if ( !exists("tidcol",mode="character") ) tidcol <- "" ## 
 dbug <- as.logical(dbug)
 sub <- as.logical(sub)
 
@@ -262,9 +263,11 @@ for ( i in 1:length(allsrc) ) {
     if ( sum(idx)==0 )
         stop("taxon ", i, " ID ", alltar[i], ": NOTHING FOUND, SHOULDN'T",
              "HAPPEN - BUG??")
-    
-    src2tar[[i]] <- c(as.character(targt[idx,"id"]))
-    if ( tn!= "" ) src2nam[[i]] <- c(as.character(targt[idx,tn]))
+
+    if ( tidcol%in%colnames(targt) )
+        src2tar[[i]] <- c(as.character(targt[idx,tidcol]))
+    if ( tn%in%colnames(targt) )
+        src2nam[[i]] <- c(as.character(targt[idx,tn]))
     
     ## if target has "no rank" get next ancestor with rank
     if ( ntax$rank[src2anc[i]] == "no rank" ) {
@@ -280,22 +283,27 @@ for ( i in 1:length(allsrc) ) {
     if ( dbug ) cat("; done\n")
 }
 
-trgs <- rep(NA,nrow(sourc))
-if ( tn != "" )
-  trgs <- unlist(lapply(src2nam, function(x) paste(x,collapse=";")))
-tids <- unlist(lapply(src2tar, function(x) paste(x,collapse=";")))
 txids <- unlist(lapply(src2tax, function(x) paste(x,collapse=";")))
 
 cat(paste("... done. writing results ....\n"), file=stderr())
 results <- cbind.data.frame(sourc,
                             taxdist=s2t.dst,
                             relation=reltype,
-                            target.taxon=txids,
                             ancestor=src2anc,
-                            rank=ntax$rank[src2anc],
-                            target=trgs,
-                            tid=tids,
+                            ancestor.rank=ntax$rank[src2anc],
+                            target.taxon=txids,
                             stringsAsFactors=FALSE)
+
+trgs <- rep(NA,nrow(sourc))
+if ( tn != "" ) {
+    trgs <- unlist(lapply(src2nam, function(x) paste(x,collapse=";")))
+    results <- cbind(results, target.name=trgs)
+}
+tids <- rep(NA,nrow(sourc))
+if ( tidcol != "" ) {
+    tids <- unlist(lapply(src2tar, function(x) paste(x,collapse=";")))
+    results <- cbind(results, target.id=tids)
+}
 
 ## sort by distance to ancestor
 #results <- results[order(as.numeric(results[,"taxdist"])),]
