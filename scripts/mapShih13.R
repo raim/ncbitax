@@ -1,4 +1,8 @@
 
+library(ape)
+library(ncbitax)
+library(segmenTools) # just for plotdev
+
 tax.path <- "/data/taxonomy"
 
 ## read meta info from shih et al. 2013 genomes
@@ -48,7 +52,6 @@ idx <- idx[,"merged"]
 shih <- cbind(shih, taxon=gold[idx,"NCBI.TAXON.ID"])
 
 ## map taxon IDs and names in tree
-library(ape)
 tree <- read.tree(file.path(tax.path, "cyanobacteria",
                             "cyanoGEBAspeciesTree.txt"))
 
@@ -125,11 +128,14 @@ shi <- drop.tip(shi,tree$tip.label[!tree$tip.label%in%rownames(map)])
 
 ## set root at Gloeobacter violaceus
 shi <- root(shi,grep("7421",shi$tip.label),resolve.root=T)
+#shi <- root(shi,grep("Trichodesmium",shi$tip.label),resolve.root=T)
 
 plotdev(file.path(tax.path,"cyanobacteria","shih13tree"),
         type="pdf", width=5, height=7)
-par(cex=.7, mai=c(.1,.1,.1,.1))
-plot(shi, show.node.label=TRUE)
+par(mai=c(.1,.1,.1,.1))
+plot(shi, show.node.label=TRUE,edge.width=2,no.margin=TRUE, cex=.7)
+     #tip.color=1:length(shi$tip.label))
+add.scale.bar()
 dev.off()
 
 ## TODO: switch location of Oscillatoria to lie next to chamaesiphon
