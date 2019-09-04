@@ -258,6 +258,23 @@ grepName <- function(pattern, tax, ...) {
     cbind(ID=names(tax$names)[idx], NAME=tax$names[idx])
 }
 
+#' gets taxon IDs from taxon names
+#'
+#' works for exact names (in ncbi file names.dmp), use
+#' \code{\link{grepName}} to find IDs from
+#' search patterns/partial names
+#' @param names taxonomy names
+#' @param tax NCBI taxonomy object
+#' @examples
+#' getID(c("Firmicutes","Cyanobacteria"), tax)
+#' @export
+getID <- function(names, tax) {
+    ## TODO: catch non-existent!
+    ## TODO: get highest or lowest rank for same name
+    ## sapply(names, function(x) names(which(tax$names==x))) # returns list
+    vapply(names, function(x) names(which(tax$names==x))[1], character(1))
+}
+
 #' gets taxon names from taxon IDs
 #' @param ids vector or edge table of taxon IDs 
 #' @param tax NCBI taxonomy object

@@ -47,6 +47,7 @@ via separate package or Rcpp
 R package, and move shell, Perl and R scripts to R package location
 for scripts
 
+* getID: catch missing and resolve multiple hits
 * add current NCBI taxonomy as data object or generate a subset,
 eg. cyanobacteria
 * provide download & unpack function
