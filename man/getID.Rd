@@ -2,19 +2,36 @@
 % Please edit documentation in R/taxonomy.R
 \name{getID}
 \alias{getID}
-\title{gets taxon IDs from taxon names}
+\title{get taxon IDs from taxon names}
 \usage{
-getID(names, tax)
+getID(names, tax, all = FALSE, first = TRUE)
 }
 \arguments{
 \item{names}{taxonomy names}
 
 \item{tax}{NCBI taxonomy object}
+
+\item{all}{return all matches; if multiple matches occur
+the result will be a list, otherwise a vector}
+
+\item{first}{return the taxon ID for the first (default: \code{TRUE})
+or last occurence of the name in NCBI file \code{names.dmp}}
 }
 \description{
-works for exact names (in ncbi file names.dmp), use
-\code{\link{grepName}} to find IDs from
-search patterns/partial names
+Returns a list or vector of taxon IDs for exact names
+(in ncbi file \code{names.dmp}), use \code{\link{grepName}}
+to find IDs from partial names or search patterns.
+Note that this is an ambiguous mapping, since some
+names occur multiple times, eg. "Proboscidea" is the
+name of both a genus of flowering plant and an order
+containing the elephants, or "Actinobacteria"
+is a name for both a "class" and a "phylum". If option
+\code{all} is set to \code{TRUE} multiple occurences
+will cause the function to return a list. If set to
+\code{FALSE} (default), only the first or the last
+occurence will be reported, depending on option \code{first}.
+TODO: resolve this ambiguity, eg. by checking the rank
+and taking the taxon ID with the lowest/highest rank.
 }
 \examples{
 getID(c("Firmicutes","Cyanobacteria"), tax)

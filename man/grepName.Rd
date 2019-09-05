@@ -2,7 +2,7 @@
 % Please edit documentation in R/taxonomy.R
 \name{grepName}
 \alias{grepName}
-\title{find taxon ID for species names}
+\title{find taxon IDs for species name patterns}
 \usage{
 grepName(pattern, tax, ...)
 }
