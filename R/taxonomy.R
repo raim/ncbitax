@@ -285,8 +285,7 @@ grepName <- function(pattern, tax, ...) {
 #' @export
 getID <- function(names, tax, all=FALSE, first=TRUE) {
     ## TODO: catch non-existent!
-    ## TODO: get highest or lowest rank for same name
-    ## 
+    ## TODO: FIX RETURN VALUE, list or vector
     multif <- ifelse(first, head, tail) # highest or lowest rank?
     if ( all )
         ids <- sapply(names, function(x) names(which(tax$names==x)))
