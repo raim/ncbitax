@@ -260,7 +260,7 @@ grepName <- function(pattern, tax, ...) {
 
 #' get taxon IDs from taxon names
 #'
-#' Returns a list or vector of taxon IDs for exact names
+#' Returns a list, matrix or vector of taxon IDs for exact names
 #' (in ncbi file \code{names.dmp}), use \code{\link{grepName}}
 #' to find IDs from partial names or search patterns.
 #' Note that this is an ambiguous mapping, since some
@@ -269,9 +269,10 @@ grepName <- function(pattern, tax, ...) {
 #' containing the elephants, or "Actinobacteria"
 #' is a name for both a "class" and a "phylum". If option
 #' \code{all} is set to \code{TRUE} multiple occurences
-#' will cause the function to return a list. If set to
+#' will cause the function to return a list or a matrix. If set to
 #' \code{FALSE} (default), only the first or the last
-#' occurence will be reported, depending on option \code{first}.
+#' occurences will be reported, depending on option \code{first}, and
+#' returned as a vector.
 #' TODO: resolve this ambiguity, eg. by checking the rank
 #' and taking the taxon ID with the lowest/highest rank.
 #' @param names taxonomy names
