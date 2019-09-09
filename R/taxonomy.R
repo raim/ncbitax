@@ -260,7 +260,7 @@ grepName <- function(pattern, tax, ...) {
 
 #' get taxon IDs from taxon names
 #'
-#' Returns a list, matrix or vector of taxon IDs for exact names
+#' Returns a list or vector of taxon IDs for exact names
 #' (in ncbi file \code{names.dmp}), use \code{\link{grepName}}
 #' to find IDs from partial names or search patterns.
 #' Note that this is an ambiguous mapping, since some
@@ -269,28 +269,33 @@ grepName <- function(pattern, tax, ...) {
 #' containing the elephants, or "Actinobacteria"
 #' is a name for both a "class" and a "phylum". If option
 #' \code{all} is set to \code{TRUE} multiple occurences
-#' will cause the function to return a list or a matrix. If set to
+#' will cause the function to return a named list. If set to
 #' \code{FALSE} (default), only the first or the last
 #' occurences will be reported, depending on option \code{first}, and
-#' returned as a vector.
+#' returned as a named vector.
 #' TODO: resolve this ambiguity, eg. by checking the rank
 #' and taking the taxon ID with the lowest/highest rank.
 #' @param names taxonomy names
 #' @param tax NCBI taxonomy object
-#' @param all return all matches; if multiple matches occur
-#' the result will be a list, otherwise a vector
+#' @param all return all matches as a named list, if set to \code{FALSE}
+#' only the first/last matches (option \code{first}) will be reported
+#' as a vector
 #' @param first return the taxon ID for the first (default: \code{TRUE})
 #' or last occurence of the name in NCBI file \code{names.dmp}
 #' @examples
 #' getID(c("Firmicutes","Cyanobacteria"), tax)
 #' @export
-getID <- function(names, tax, all=FALSE, first=TRUE) {
+getID <- function(names, tax, all=TRUE, first=TRUE) {
     ## TODO: catch non-existent!
     ## TODO: FIX RETURN VALUE, list or vector
     multif <- ifelse(first, head, tail) # highest or lowest rank?
-    if ( all )
+    if ( all ) {
         ids <- sapply(names, function(x) names(which(tax$names==x)))
-    else
+        if ( is.matrix(ids) ) {
+            ids <- as.list(as.data.frame(ids))
+            ids <- lapply(ids, as.character)
+        } else ids <- as.list(ids)
+    } else
         ids <- vapply(names, function(x) {
             nms <- names(which(tax$names==x))
             if ( length(nms)==0 ) nms <- nms[1] # NA not accepted in vapply
