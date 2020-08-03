@@ -5,7 +5,7 @@
 #'@author Rainer Machne \email{machne@hhu.de}
 #'@docType package
 #'@name ncbitax
-#'@importFrom utils read.table installed.packages
+#'@importFrom utils read.table installed.packages head tail
 NULL # this just ends the global package documentation
 
 ## PHYLOGENY/TAXONOMY: TREE PARSING AND GENERATION
